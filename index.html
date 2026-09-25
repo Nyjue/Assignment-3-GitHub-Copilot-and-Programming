@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Beatify</title>
+<style>
+  :root{
+    --bg:#121212;
+    --sidebar:#000000;
+    --card:#181818;
+    --card-hover:#282828;
+    --green:#1db954;
+    --text:#ffffff;
+    --sub:#b3b3b3;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    height:100%;
+    overflow-x:hidden;
+  }
+  html{height:100%; scroll-padding-top: env(safe-area-inset-top, 0px);}
+
+  .app{
+    display:flex;
+    height: 100vh;
+    height: 100dvh;
+  }
+
+  /* sidebar */
+  .sidebar{
+    width:220px;
+    background:var(--sidebar);
+    padding:20px 12px;
+    flex-shrink:0;
+    display:flex;
+    flex-direction:column;
+    gap:24px;
+  }
+  .logo{
+    font-size:22px;
+    font-weight:800;
+    padding:0 12px;
+    color:var(--green);
+  }
+  .logo span{color:var(--text);}
+  .nav a{
+    display:block;
+    color:var(--sub);
+    text-decoration:none;
+    font-size:14px;
+    font-weight:600;
+    padding:8px 12px;
+    border-radius:4px;
+  }
+  .nav a.active, .nav a:hover{
+    color:var(--text);
+    background:var(--card-hover);
+  }
+  .playlists{
+    margin-top:8px;
+    overflow-y:auto;
+    flex:1;
+  }
+  .playlists h4{
+    color:var(--sub);
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.05em;
+    padding:0 12px 8px;
+  }
+  .playlists div{
+    padding:6px 12px;
+    font-size:13px;
+    color:var(--sub);
+    border-radius:4px;
+    cursor:pointer;
+  }
+  .playlists div:hover{background:var(--card-hover); color:var(--text);}
+
+  /* main */
+  .main{
+    flex:1;
+    overflow-y:auto;
+    background:linear-gradient(180deg,#1e1e1e 0%, var(--bg) 300px);
+  }
+  .topbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:16px 24px;
+    position:sticky;
+    top:0;
+    background:rgba(18,18,18,.6);
+    backdrop-filter:blur(6px);
+    z-index:5;
+  }
+  .search{
+    background:#fff;
+    border-radius:20px;
+    padding:8px 16px;
+    font-size:13px;
+    color:#333;
+    width:260px;
+    max-width:45vw;
+  }
+  .avatar{
+    width:30px;height:30px;border-radius:50%;
+    background:var(--green);
+    display:flex;align-items:center;justify-content:center;
+    font-size:13px;font-weight:700;
+  }
+  .content{padding:8px 24px 100px;}
+  .content h1{font-size:26px; margin-bottom:16px;}
+  .content h2{font-size:18px; margin:24px 0 12px;}
+
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+    gap:16px;
+  }
+  .card{
+    background:var(--card);
+    border-radius:6px;
+    padding:12px;
+    cursor:pointer;
+    transition:background .15s ease;
+  }
+  .card:hover{background:var(--card-hover);}
+  .cover{
+    width:100%;
+    aspect-ratio:1/1;
+    border-radius:4px;
+    margin-bottom:10px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:32px;
+  }
+  .card p{font-size:13px; font-weight:600; margin-bottom:4px;}
+  .card span{font-size:11px; color:var(--sub);}
+
+  .table{width:100%; border-collapse:collapse; margin-top:8px;}
+  .table tr{cursor:pointer;}
+  .table tr:hover{background:var(--card-hover);}
+  .table td{
+    padding:8px 10px;
+    font-size:13px;
+    color:var(--sub);
+    border-radius:4px;
+  }
+  .table td.title{color:var(--text); font-weight:500;}
+  .table tr.playing td{color:var(--green);}
+  .num{width:24px; text-align:center;}
+
+  /* player bar */
+  .player{
+    height:80px;
+    background:#181818;
+    border-top:1px solid #282828;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:0 16px;
+    position:fixed;
+    bottom:0;
+    left:0;
+    right:0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .now{display:flex; align-items:center; gap:12px; width:220px; min-width:0;}
+  .now .mini-cover{
+    width:50px;height:50px;border-radius:4px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:20px; flex-shrink:0;
+  }
+  .now .info{min-width:0;}
+  .now .info p{font-size:13px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .now .info span{font-size:11px; color:var(--sub);}
+
+  .controls{display:flex; flex-direction:column; align-items:center; gap:6px; flex:1;}
+  .buttons{display:flex; align-items:center; gap:18px;}
+  .buttons button{
+    background:none; border:none; color:var(--sub); cursor:pointer; font-size:16px;
+  }
+  .buttons button:hover{color:var(--text);}
+  #playBtn{
+    background:var(--text); color:#000; border-radius:50%;
+    width:32px; height:32px; display:flex; align-items:center; justify-content:center;
+    font-size:14px;
+  }
+  .seek{display:flex; align-items:center; gap:8px; width:100%; max-width:480px;}
+  .seek span{font-size:11px; color:var(--sub);}
+  .bar{flex:1; height:4px; background:#4d4d4d; border-radius:2px; position:relative; cursor:pointer;}
+  .bar .fill{position:absolute; left:0; top:0; height:100%; background:var(--green); border-radius:2px; width:0%;}
+
+  .volume{width:150px; display:flex; align-items:center; gap:8px; justify-content:flex-end;}
+  .vol-bar{width:80px; height:4px; background:#4d4d4d; border-radius:2px; position:relative; cursor:pointer;}
+  .vol-bar .fill{position:absolute; left:0; top:0; height:100%; background:var(--sub); border-radius:2px; width:70%;}
+
+  @media (max-width:700px){
+    .sidebar{display:none;}
+    .now .info span, .volume{display:none;}
+    .search{width:140px;}
+  }
+
+  footer{
+    text-align:center;
+    color:#555;
+    font-size:11px;
+    padding:20px 0 100px;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="sidebar">
+    <div class="logo">beat<span>ify</span></div>
+    <div class="nav">
+      <a href="#" class="active">🏠 Home</a>
+      <a href="#">🔍 Search</a>
+      <a href="#">📚 Your Library</a>
+    </div>
+    <div class="playlists">
+      <h4>Playlists</h4>
+      <div>Late Night Grind</div>
+      <div>Study Lo-fi</div>
+      <div>Gym Hype</div>
+      <div>Road Trip Mix</div>
+      <div>Sunday Chill</div>
+      <div>90s Throwbacks</div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <input class="search" placeholder="What do you want to listen to?">
+      <div class="avatar">NB</div>
+    </div>
+
+    <div class="content">
+      <h1>Good afternoon</h1>
+
+      <div class="grid" id="quickGrid"></div>
+
+      <h2>Made For You</h2>
+      <div class="grid" id="madeForYou"></div>
+
+      <h2>Recently Played</h2>
+      <table class="table" id="trackTable"></table>
+
+      <footer>made by a CS senior for a class project — not affiliated with actual Spotify lol</footer>
+    </div>
+  </div>
+</div>
+
+<div class="player">
+  <div class="now">
+    <div class="mini-cover" id="miniCover" style="background:#2a4d3a;">🎵</div>
+    <div class="info">
+      <p id="nowTitle">Pick a song</p>
+      <span id="nowArtist">—</span>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="buttons">
+      <button>🔀</button>
+      <button onclick="prevSong()">⏮</button>
+      <button id="playBtn" onclick="togglePlay()">▶</button>
+      <button onclick="nextSong()">⏭</button>
+      <button>🔁</button>
+    </div>
+    <div class="seek">
+      <span id="curTime">0:00</span>
+      <div class="bar" id="seekBar"><div class="fill" id="seekFill"></div></div>
+      <span id="totalTime">3:00</span>
+    </div>
+  </div>
+
+  <div class="volume">
+    <span>🔊</span>
+    <div class="vol-bar"><div class="fill"></div></div>
+  </div>
+</div>
+
+<script>
+const emojis = ["🎧","🎸","🌆","🌙","🔥","🚗","☕","🎷","🌊","🎹","🏋️","📻"];
+const colors = ["#2a4d3a","#4d2a4a","#2a3a4d","#4d3a2a","#3a4d2a","#4a2a4d"];
+
+const songs = [
+  {title:"Golden Hour", artist:"Jayden Cole", len:"3:24"},
+  {title:"Campus Nights", artist:"Ari Lowe", len:"2:58"},
+  {title:"Rewind", artist:"Nova Brooks", len:"3:41"},
+  {title:"Quiet Static", artist:"Milo Reyes", len:"4:02"},
+  {title:"Fade Into Blue", artist:"Sasha Dean", len:"3:15"},
+  {title:"After Hours Drive", artist:"Kendrick Hale", len:"3:33"},
+  {title:"Paper Planes (not that one)", artist:"Theo Vance", len:"2:47"},
+  {title:"Study Break", artist:"Lo-Fi Larry", len:"3:09"}
+];
+
+function makeCard(container, s, i){
+  const div = document.createElement("div");
+  div.className = "card";
+  div.onclick = () => playSong(i);
+  div.innerHTML = `
+    <div class="cover" style="background:${colors[i % colors.length]}">${emojis[i % emojis.length]}</div>
+    <p>${s.title}</p>
+    <span>${s.artist}</span>
+  `;
+  container.appendChild(div);
+}
+
+const quickGrid = document.getElementById("quickGrid");
+const madeForYou = document.getElementById("madeForYou");
+songs.slice(0,6).forEach((s,i) => makeCard(quickGrid, s, i));
+songs.slice(2).forEach((s,i) => makeCard(madeForYou, s, i+2));
+
+const tbody = document.getElementById("trackTable");
+songs.forEach((s,i) => {
+  const tr = document.createElement("tr");
+  tr.id = "row"+i;
+  tr.onclick = () => playSong(i);
+  tr.innerHTML = `
+    <td class="num">${i+1}</td>
+    <td class="title">${s.title}</td>
+    <td>${s.artist}</td>
+    <td>${s.len}</td>
+  `;
+  tbody.appendChild(tr);
+});
+
+let current = -1;
+let playing = false;
+let timer = null;
+let seconds = 0;
+
+function playSong(i){
+  if(current !== -1){
+    document.getElementById("row"+current)?.classList.remove("playing");
+  }
+  current = i;
+  seconds = 0;
+  const s = songs[i];
+  document.getElementById("nowTitle").textContent = s.title;
+  document.getElementById("nowArtist").textContent = s.artist;
+  document.getElementById("totalTime").textContent = s.len;
+  document.getElementById("miniCover").style.background = colors[i % colors.length];
+  document.getElementById("miniCover").textContent = emojis[i % emojis.length];
+  document.getElementById("row"+i)?.classList.add("playing");
+  playing = true;
+  document.getElementById("playBtn").textContent = "⏸";
+  startTimer();
+}
+
+function togglePlay(){
+  if(current === -1){ playSong(0); return; }
+  playing = !playing;
+  document.getElementById("playBtn").textContent = playing ? "⏸" : "▶";
+  if(playing) startTimer(); else clearInterval(timer);
+}
+
+function nextSong(){ playSong((current+1) % songs.length); }
+function prevSong(){ playSong((current-1+songs.length) % songs.length); }
+
+function lenToSec(str){
+  const [m,s] = str.split(":").map(Number);
+  return m*60+s;
+}
+
+function startTimer(){
+  clearInterval(timer);
+  timer = setInterval(() => {
+    if(!playing || current === -1) return;
+    const total = lenToSec(songs[current].len);
+    seconds++;
+    if(seconds >= total){ nextSong(); return; }
+    const pct = (seconds/total)*100;
+    document.getElementById("seekFill").style.width = pct + "%";
+    const m = Math.floor(seconds/60), s = seconds%60;
+    document.getElementById("curTime").textContent = m+":"+String(s).padStart(2,"0");
+  }, 1000);
+}
+</script>
+</body>
+</html>
