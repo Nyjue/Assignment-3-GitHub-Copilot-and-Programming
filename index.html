@@ -224,7 +224,7 @@
     <div class="logo">beat<span>ify</span></div>
     <div class="nav">
       <a href="#" class="active">🏠 Home</a>
-      <a href="#">🔍 Search</a>
+      <a href="#" id="searchNav">🔍 Search</a>
       <a href="#">📚 Your Library</a>
     </div>
     <div class="playlists">
@@ -240,7 +240,7 @@
 
   <div class="main">
     <div class="topbar">
-      <input class="search" placeholder="What do you want to listen to?">
+      <input class="search" id="searchInput" aria-label="Search songs and artists" placeholder="What do you want to listen to?">
       <div class="avatar">NB</div>
     </div>
 
@@ -271,22 +271,22 @@
 
   <div class="controls">
     <div class="buttons">
-      <button>🔀</button>
-      <button onclick="prevSong()">⏮</button>
-      <button id="playBtn" onclick="togglePlay()">▶</button>
-      <button onclick="nextSong()">⏭</button>
-      <button>🔁</button>
+      <button id="shuffleBtn" aria-label="Toggle shuffle" title="Toggle shuffle">🔀</button>
+      <button onclick="prevSong()" aria-label="Previous song" title="Previous song">⏮</button>
+      <button id="playBtn" onclick="togglePlay()" aria-label="Play" title="Play">▶</button>
+      <button onclick="nextSong()" aria-label="Next song" title="Next song">⏭</button>
+      <button id="repeatBtn" aria-label="Toggle repeat" title="Toggle repeat">🔁</button>
     </div>
     <div class="seek">
       <span id="curTime">0:00</span>
-      <div class="bar" id="seekBar"><div class="fill" id="seekFill"></div></div>
+      <div class="bar" id="seekBar" role="slider" aria-label="Seek through song" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0"><div class="fill" id="seekFill"></div></div>
       <span id="totalTime">3:00</span>
     </div>
   </div>
 
   <div class="volume">
     <span>🔊</span>
-    <div class="vol-bar"><div class="fill"></div></div>
+    <div class="vol-bar" id="volumeBar" role="slider" aria-label="Volume" aria-valuemin="0" aria-valuemax="100" aria-valuenow="70" tabindex="0"><div class="fill"></div></div>
   </div>
 </div>
 
@@ -319,27 +319,49 @@ function makeCard(container, s, i){
 
 const quickGrid = document.getElementById("quickGrid");
 const madeForYou = document.getElementById("madeForYou");
-songs.slice(0,6).forEach((s,i) => makeCard(quickGrid, s, i));
-songs.slice(2).forEach((s,i) => makeCard(madeForYou, s, i+2));
+const trackTable = document.getElementById("trackTable");
+const searchInput = document.getElementById("searchInput");
 
-const tbody = document.getElementById("trackTable");
-songs.forEach((s,i) => {
-  const tr = document.createElement("tr");
-  tr.id = "row"+i;
-  tr.onclick = () => playSong(i);
-  tr.innerHTML = `
-    <td class="num">${i+1}</td>
-    <td class="title">${s.title}</td>
-    <td>${s.artist}</td>
-    <td>${s.len}</td>
-  `;
-  tbody.appendChild(tr);
-});
+function renderLibrary(query = ""){
+  const search = query.trim().toLowerCase();
+  const matches = songs.filter(s => `${s.title} ${s.artist}`.toLowerCase().includes(search));
+  quickGrid.replaceChildren();
+  madeForYou.replaceChildren();
+  trackTable.replaceChildren();
+  matches.slice(0,6).forEach(s => makeCard(quickGrid, s, songs.indexOf(s)));
+  matches.slice(2).forEach(s => makeCard(madeForYou, s, songs.indexOf(s)));
+  matches.forEach((s, i) => {
+    const songIndex = songs.indexOf(s);
+    const tr = document.createElement("tr");
+    tr.id = "row"+songIndex;
+    tr.onclick = () => playSong(songIndex);
+    tr.innerHTML = `
+      <td class="num">${i+1}</td>
+      <td class="title">${s.title}</td>
+      <td>${s.artist}</td>
+      <td>${s.len}</td>
+    `;
+    trackTable.appendChild(tr);
+  });
+}
+
+renderLibrary();
 
 let current = -1;
 let playing = false;
 let timer = null;
 let seconds = 0;
+let shuffle = false;
+let repeat = false;
+
+function updateProgress(){
+  const total = current === -1 ? 0 : lenToSec(songs[current].len);
+  const pct = total ? (seconds / total) * 100 : 0;
+  document.getElementById("seekFill").style.width = pct + "%";
+  document.getElementById("seekBar").setAttribute("aria-valuenow", Math.round(pct));
+  const m = Math.floor(seconds/60), s = seconds%60;
+  document.getElementById("curTime").textContent = m+":"+String(s).padStart(2,"0");
+}
 
 function playSong(i){
   if(current !== -1){
@@ -347,6 +369,7 @@ function playSong(i){
   }
   current = i;
   seconds = 0;
+  updateProgress();
   const s = songs[i];
   document.getElementById("nowTitle").textContent = s.title;
   document.getElementById("nowArtist").textContent = s.artist;
@@ -363,10 +386,14 @@ function togglePlay(){
   if(current === -1){ playSong(0); return; }
   playing = !playing;
   document.getElementById("playBtn").textContent = playing ? "⏸" : "▶";
+  document.getElementById("playBtn").setAttribute("aria-label", playing ? "Pause" : "Play");
   if(playing) startTimer(); else clearInterval(timer);
 }
 
-function nextSong(){ playSong((current+1) % songs.length); }
+function nextSong(){
+  const next = shuffle ? Math.floor(Math.random() * songs.length) : (current+1) % songs.length;
+  playSong(next);
+}
 function prevSong(){ playSong((current-1+songs.length) % songs.length); }
 
 function lenToSec(str){
@@ -380,13 +407,42 @@ function startTimer(){
     if(!playing || current === -1) return;
     const total = lenToSec(songs[current].len);
     seconds++;
-    if(seconds >= total){ nextSong(); return; }
-    const pct = (seconds/total)*100;
-    document.getElementById("seekFill").style.width = pct + "%";
-    const m = Math.floor(seconds/60), s = seconds%60;
-    document.getElementById("curTime").textContent = m+":"+String(s).padStart(2,"0");
+    if(seconds >= total){
+      if(repeat){ seconds = 0; updateProgress(); return; }
+      nextSong();
+      return;
+    }
+    updateProgress();
   }, 1000);
 }
+
+searchInput.addEventListener("input", event => renderLibrary(event.target.value));
+document.getElementById("searchNav").addEventListener("click", event => {
+  event.preventDefault();
+  searchInput.focus();
+});
+document.getElementById("shuffleBtn").addEventListener("click", event => {
+  shuffle = !shuffle;
+  event.currentTarget.style.color = shuffle ? "var(--green)" : "";
+  event.currentTarget.setAttribute("aria-pressed", shuffle);
+});
+document.getElementById("repeatBtn").addEventListener("click", event => {
+  repeat = !repeat;
+  event.currentTarget.style.color = repeat ? "var(--green)" : "";
+  event.currentTarget.setAttribute("aria-pressed", repeat);
+});
+document.getElementById("seekBar").addEventListener("click", event => {
+  if(current === -1) return;
+  const bounds = event.currentTarget.getBoundingClientRect();
+  seconds = Math.round(((event.clientX - bounds.left) / bounds.width) * lenToSec(songs[current].len));
+  updateProgress();
+});
+document.getElementById("volumeBar").addEventListener("click", event => {
+  const bar = event.currentTarget;
+  const pct = Math.max(0, Math.min(100, ((event.clientX - bar.getBoundingClientRect().left) / bar.offsetWidth) * 100));
+  bar.querySelector(".fill").style.width = pct + "%";
+  bar.setAttribute("aria-valuenow", Math.round(pct));
+});
 </script>
 </body>
 </html>
